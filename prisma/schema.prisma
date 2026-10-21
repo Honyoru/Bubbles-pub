@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model advertisements {
+  advertisement_id Int            @id(map: "pk_advertisements") @default(autoincrement())
+  company_id       Int
+  title            String         @db.VarChar(150)
+  location         String?        @db.VarChar(255)
+  description      String
+  contract_type    String?        @db.VarChar(30)
+  remote_status    String?        @db.VarChar(30)
+  category         String?        @db.VarChar(50)
+  salary           String?        @db.VarChar(100)
+  working_time     String?        @db.VarChar(50)
+  created_at       DateTime       @default(now()) @db.Timestamp(6)
+  company          company        @relation(fields: [company_id], references: [id_company], onDelete: Cascade, onUpdate: NoAction, map: "fk_adv_company")
+  applications     applications[]
+}
+
+model applications {
+  application_id   Int            @id(map: "pk_applications") @default(autoincrement())
+  person_id        Int
+  advertisement_id Int
+  message          String?
+  resume_url       String?        @db.VarChar(255)
+  applied_at       DateTime       @default(now()) @db.Timestamp(6)
+  advertisements   advertisements @relation(fields: [advertisement_id], references: [advertisement_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_app_adv")
+  people           people         @relation(fields: [person_id], references: [person_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_app_person")
+  messages         messages[]
+
+  @@unique([person_id, advertisement_id], map: "unq_application")
+}
+
+model company {
+  id_company     Int              @id(map: "pk_companies") @default(autoincrement())
+  person_id      Int
+  name           String           @db.VarChar(100)
+  description    String?
+  advertisements advertisements[]
+  people         people           @relation(fields: [person_id], references: [person_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_companies_person")
+  events         events[]
+}
+
+model event_participants {
+  event_id      Int
+  person_id     Int
+  registered_at DateTime @default(now()) @db.Timestamp(6)
+  events        events   @relation(fields: [event_id], references: [event_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ep_event")
+  people        people   @relation(fields: [person_id], references: [person_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_ep_person")
+
+  @@id([event_id, person_id], map: "pk_event_participants")
+}
+
+model events {
+  event_id           Int                  @id(map: "pk_events") @default(autoincrement())
+  title              String               @db.VarChar(150)
+  description        String
+  event_date         DateTime             @db.Timestamp(6)
+  location           String               @db.VarChar(150)
+  company_id         Int?
+  organizer_id       Int
+  end_register_at    DateTime?            @db.Timestamp(6)
+  event_participants event_participants[]
+  company            company?             @relation(fields: [company_id], references: [id_company], onUpdate: NoAction, map: "fk_events_company")
+  people             people               @relation(fields: [organizer_id], references: [person_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_events_organizer")
+}
+
+model messages {
+  message_id                          BigInt        @id(map: "pk_messages") @default(autoincrement())
+  sender_id                           Int
+  receiver_id                         Int
+  content                             String
+  sent_at                             DateTime      @default(now()) @db.Timestamp(6)
+  read_at                             DateTime?     @db.Timestamp(6)
+  application_id                      Int?
+  applications                        applications? @relation(fields: [application_id], references: [application_id], onUpdate: NoAction, map: "fk_messages_application")
+  people_messages_receiver_idTopeople people        @relation("messages_receiver_idTopeople", fields: [receiver_id], references: [person_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_messages_receiver")
+  people_messages_sender_idTopeople   people        @relation("messages_sender_idTopeople", fields: [sender_id], references: [person_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_messages_sender")
+
+  @@index([sender_id, receiver_id, sent_at], map: "idx_conversation")
+  @@index([receiver_id, read_at], map: "idx_unread")
+}
+
+model people {
+  person_id                             Int                  @id(map: "pk_store_people") @default(autoincrement())
+  name                                  String               @db.VarChar(50)
+  first_name                            String               @db.VarChar(50)
+  pseudo                                String?              @db.VarChar(50)
+  email                                 String               @unique(map: "unq_store_people_email") @db.VarChar(100)
+  location                              String               @db.VarChar(255)
+  cellphone_number                      String               @db.VarChar(20)
+  status                                String               @default("candidate") @db.VarChar(20)
+  role                                  String               @default("candidate") @db.VarChar(20)
+  password_hash                         String?              @db.VarChar(255)
+  google_id                             String?              @unique(map: "unq_store_people_google_id") @db.VarChar(255)
+  two_factor_secret                     String?              @db.VarChar(100)
+  is_two_factor_enabled                 Boolean              @default(false)
+  applications                          applications[]
+  company                               company[]
+  event_participants                    event_participants[]
+  events                                events[]
+  messages_messages_receiver_idTopeople messages[]           @relation("messages_receiver_idTopeople")
+  messages_messages_sender_idTopeople   messages[]           @relation("messages_sender_idTopeople")
+}
