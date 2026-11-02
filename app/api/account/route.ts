@@ -57,17 +57,16 @@ export const POST = handle(async (request: Request) => {
     if (existing?.password_hash) throw new HttpError(409, "An account with this email already exists");
 
     const user = await prisma.$transaction(async (tx) => {
-        const payload = { ...data, role, company_id: companyId };
+        const payload = { ...data, role };   // no company_id: it isn't a people column
         const person = existing
             ? await tx.people.update({ where: { person_id: existing.person_id }, data: payload, select: publicUserSelect })
-            : await tx.people.create({ data: payload as never, select: publicUserSelect });
+            : await tx.people.create({ data: payload, select: publicUserSelect });
 
         if (newCompany) {
-            // company.person_id is required, so the person must exist first
-            const company = await tx.company.create({ data: { ...newCompany, person_id: person.person_id } });
-            await tx.people.update({ where: { person_id: person.person_id }, data: { company_id: company.id_company } });
+            await tx.company.create({ data: { ...newCompany, person_id: person.person_id } });
         }
         return person;
+    });
     });
 
 
