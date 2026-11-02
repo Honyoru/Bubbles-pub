@@ -67,7 +67,6 @@ export const POST = handle(async (request: Request) => {
         }
         return person;
     });
-    });
 
 
     await setSession(user.person_id);
