@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/app/lib/prisma";
 import { toData } from "@/app/lib/crud";
 import { HttpError, handle, json, readBody, requireUser, noContent } from "@/app/lib/http";
@@ -8,6 +9,7 @@ import { clearSession, getSessionUser, publicUserSelect, setSession } from "@/ap
 const people = getResource("people");
 const account: Resource = { ...people, fields: people.fields.filter((f) => f.key !== "role" && f.key !== "status") };
 const SIGNUP_ROLES = ["candidate", "recruiter", "meeter"];
+
 
 function checkPassword(body: Record<string, unknown>, required: boolean) {
     const password = typeof body.password === "string" ? body.password : "";
@@ -57,7 +59,7 @@ export const POST = handle(async (request: Request) => {
     if (existing?.password_hash) throw new HttpError(409, "An account with this email already exists");
 
     const user = await prisma.$transaction(async (tx) => {
-        const payload = { ...data, role };   // no company_id: it isn't a people column
+        const payload = { ...data, role } as Prisma.peopleUncheckedCreateInput;   // no company_id: it isn't a people column
         const person = existing
             ? await tx.people.update({ where: { person_id: existing.person_id }, data: payload, select: publicUserSelect })
             : await tx.people.create({ data: payload, select: publicUserSelect });
